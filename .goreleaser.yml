@@ -1,6 +1,8 @@
 before:
   hooks:
     - go mod download
+signs:
+  - artifacts: checksum
 builds:
   - env:
       - CGO_ENABLED=0
