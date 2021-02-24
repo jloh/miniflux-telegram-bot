@@ -1,0 +1,42 @@
+[Unit]
+Description=Miniflux Telegram bot
+After=network.target miniflux.service
+Wants=miniflux.service
+
+[Service]
+User=miniflux-api
+Group=miniflux-api
+ExecStart=/usr/bin/miniflux-bot
+EnvironmentFile=/etc/default/miniflux_bot
+Restart=always
+
+# https://www.freedesktop.org/software/systemd/man/systemd.exec.html#NoNewPrivileges=
+NoNewPrivileges=true
+
+# https://www.freedesktop.org/software/systemd/man/systemd.exec.html#PrivateDevices=
+PrivateDevices=true
+
+# https://www.freedesktop.org/software/systemd/man/systemd.exec.html#ProtectControlGroups=
+ProtectControlGroups=true
+
+# https://www.freedesktop.org/software/systemd/man/systemd.exec.html#ProtectHome=
+ProtectHome=true
+
+# https://www.freedesktop.org/software/systemd/man/systemd.exec.html#ProtectKernelModules=
+ProtectKernelModules=true
+
+# https://www.freedesktop.org/software/systemd/man/systemd.exec.html#ProtectKernelTunables=
+ProtectKernelTunables=true
+
+# https://www.freedesktop.org/software/systemd/man/systemd.exec.html#ProtectSystem=
+ProtectSystem=strict
+
+# https://www.freedesktop.org/software/systemd/man/systemd.exec.html#RestrictRealtime=
+RestrictRealtime=true
+
+# Provide a private /tmp
+# https://www.freedesktop.org/software/systemd/man/systemd.exec.html#PrivateTmp=
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
