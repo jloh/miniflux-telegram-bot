@@ -31,6 +31,7 @@ var (
 func main() {
 	// Get config
 	viper.SetDefault("MINIFLUX_URL", "https://reader.miniflux.app")
+	viper.SetDefault("MINIFLUX_SLEEP_TIME", 30)
 	viper.SetDefault("TELEGRAM_CHAT_ID", 0)
 	viper.AutomaticEnv() // read in environment variables that match
 
@@ -74,7 +75,7 @@ func main() {
 				}
 			}
 		}
-		time.Sleep(1 * time.Minute)
+		time.Sleep(time.Duration(viper.GetInt64("MINIFLUX_SLEEP_TIME")) * time.Minute)
 	}
 }
 
