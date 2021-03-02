@@ -33,6 +33,7 @@ func main() {
 	viper.SetDefault("MINIFLUX_URL", "https://reader.miniflux.app")
 	viper.SetDefault("MINIFLUX_SLEEP_TIME", 30)
 	viper.SetDefault("TELEGRAM_CHAT_ID", 0)
+	viper.SetDefault("TELEGRAM_POLL_TIMEOUT", 120)
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// Set ChatID
@@ -81,7 +82,7 @@ func main() {
 
 func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, rss *client.Client) {
 	poll := tgbotapi.NewUpdate(0)
-	poll.Timeout = 120
+	poll.Timeout = viper.GetInt("TELEGRAM_POLL_TIMEOUT")
 
 	updates, err := bot.GetUpdatesChan(poll)
 	if err != nil {
