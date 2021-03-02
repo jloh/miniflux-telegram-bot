@@ -51,16 +51,20 @@ func main() {
 		log.Fatalf("Cannot find latest entry: %v", err)
 	}
 
-	// Get latest entry ID
+	// Set latest entry
 	latestEntryID := latestEntries.Entries[0].ID
 
+	// Initialise Telegram bot instance
 	bot, err := tgbotapi.NewBotAPI(viper.GetString("TELEGRAM_BOT_TOKEN"))
 	if err != nil {
-		log.Panic(err)
+		log.Fatalf("Error initialising Telegram: %v", err)
 	}
 
+	// Start listening for messages from Telegram
 	go listenForMessages(bot, chatID, rss)
 
+	// Loop checking for new Miniflux entries
+	// TODO: If webhooks get added, change over to those
 	for {
 		entries, err := rss.Entries(&miniflux.Filter{Status: miniflux.EntryStatusUnread, Order: "id", AfterEntryID: latestEntryID})
 
@@ -109,15 +113,15 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, rss *client.Client) {
 				if err := rss.UpdateEntries([]int64{entryID}, "read"); err != nil {
 					answerCallback(bot, update.CallbackQuery.ID, "Error marking entry as read")
 				} else {
-					answerCallback(bot, update.CallbackQuery.ID, "Marked entry as read")
-					updateKeyboard(bot, chatID, rss, update.CallbackQuery.Message.MessageID, entryID)
+					go answerCallback(bot, update.CallbackQuery.ID, "Marked entry as read")
+					go updateKeyboard(bot, chatID, rss, update.CallbackQuery.Message.MessageID, entryID)
 				}
 			case markUnread:
 				if err := rss.UpdateEntries([]int64{entryID}, "unread"); err != nil {
 					answerCallback(bot, update.CallbackQuery.ID, "Error marking entry as unread")
 				} else {
-					answerCallback(bot, update.CallbackQuery.ID, "Marked entry as unread")
-					updateKeyboard(bot, chatID, rss, update.CallbackQuery.Message.MessageID, entryID)
+					go answerCallback(bot, update.CallbackQuery.ID, "Marked entry as unread")
+					go updateKeyboard(bot, chatID, rss, update.CallbackQuery.Message.MessageID, entryID)
 				}
 			case deleteAndMark:
 				if err := rss.UpdateEntries([]int64{entryID}, "read"); err != nil {
