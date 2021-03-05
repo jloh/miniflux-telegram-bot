@@ -34,7 +34,7 @@ func main() {
 	viper.SetDefault("MINIFLUX_SLEEP_TIME", 30)
 	viper.SetDefault("TELEGRAM_CHAT_ID", 0)
 	viper.SetDefault("TELEGRAM_POLL_TIMEOUT", 120)
-	viper.SetDefault("TELEGRAM_NOTIFICATION", false)
+	viper.SetDefault("TELEGRAM_SILENT_NOTIFICATION", true)
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// Set ChatID
@@ -76,7 +76,7 @@ func main() {
 				fmt.Println("Found new entries:")
 				for _, entry := range entries.Entries {
 					fmt.Printf("%v by %v\n", entry.Title, entry.Feed.Title)
-					sendMsg(bot, chatID, entry, viper.GetBool("TELEGRAM_NOTIFICATION"))
+					sendMsg(bot, chatID, entry, viper.GetBool("TELEGRAM_SILENT_NOTIFICATION"))
 					latestEntryID = entry.ID
 				}
 			}
