@@ -8,10 +8,18 @@
 
 1. Download the [latest release](https://github.com/jloh/miniflux-telegram-bot/releases/latest/)
 1. Place the binary somewhere in your path
-1. Set the following environment variables:
-  * `MINIFLUX_URL`: Set to the base URL of your Miniflux instance (Defaults to `https://reader.miniflux.app`)
-  * `MINIFLUX_API_KEY`: Set to the API key generated for this service
-  * `TELEGRAM_BOT_TOKEN`: The Telegram token for your bot (Recieved via the Bot Father)
-  * `TELEGRAM_CHAT_ID`: Your Chat ID for yourself and the Bot
-1. Start the service
+1. Set the environment variables outlined below
+1. Start the service  
    **Note:** There is a example Systemd `.service` file in the [contrib folder](contrib/)
+
+### Configuration options
+
+| Name                            | Default                       | Description |
+| ------------------------------- | ----------------------------- | ----------- |
+| `MINIFLUX_URL`                  | `https://reader.miniflux.app` | URL for your Miniflux instance |
+| `MINIFLUX_API_KEY` (Required)   | `nil`                         | Your Miniflux API key |
+| `MINIFLUX_SLEEP_TIME`           | `30`                          | How many minutes the bot should sleep before checking for new entries |
+| `TELEGRAM_BOT_TOKEN` (Required) | `nil`                         | Bot token to use with the Telegram API  |
+| `TELEGRAM_CHAT_ID` (Required)   | `0`                           | The Chat ID the bot should send messages to (You can find your Chat ID by talking to [IDBot](https://telegram.me/storebot?start=myidbot)) |
+| `TELEGRAM_POLL_TIMEOUT`         | `120`                         | How many seconds to wait for a notification from Telegram before establishing a new connection|
+| `TELEGRAM_SILENT_NOTIFICATION`  | `true`                        | Determines whether notifications are delivered [silently](https://telegram.org/blog/channels-2-0#silent-messages) or not |
