@@ -9,7 +9,6 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/spf13/viper"
-	"miniflux.app/client"
 	miniflux "miniflux.app/client"
 )
 
@@ -73,9 +72,7 @@ func main() {
 			fmt.Printf("Error getting entries: %v", err)
 		} else {
 			if entries.Total != 0 {
-				fmt.Println("Found new entries:")
 				for _, entry := range entries.Entries {
-					fmt.Printf("%v by %v\n", entry.Title, entry.Feed.Title)
 					sendMsg(bot, chatID, entry, viper.GetBool("TELEGRAM_SILENT_NOTIFICATION"))
 					latestEntryID = entry.ID
 				}
@@ -85,7 +82,7 @@ func main() {
 	}
 }
 
-func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, rss *client.Client) {
+func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client) {
 	poll := tgbotapi.NewUpdate(0)
 	poll.Timeout = viper.GetInt("TELEGRAM_POLL_TIMEOUT")
 
@@ -147,7 +144,7 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, rss *client.Client) {
 	}
 }
 
-func sendMsg(bot *tgbotapi.BotAPI, chatID int64, entry *client.Entry, silentMessage bool) {
+func sendMsg(bot *tgbotapi.BotAPI, chatID int64, entry *miniflux.Entry, silentMessage bool) {
 	msg := tgbotapi.NewMessage(chatID, escapeText("ModeMarkdownV2", fmt.Sprintf("*%s*\n%s in %s\n%s", entry.Title, entry.Feed.Title, entry.Feed.Category.Title, entry.URL)))
 	msg.ReplyMarkup = generateKeyboard(entry)
 	msg.ParseMode = "MarkdownV2"
@@ -176,7 +173,7 @@ func escapeText(parseMode string, text string) string {
 	return replacer.Replace(text)
 }
 
-func generateKeyboard(entry *client.Entry) tgbotapi.InlineKeyboardMarkup {
+func generateKeyboard(entry *miniflux.Entry) tgbotapi.InlineKeyboardMarkup {
 	buttons := make(map[string]string)
 
 	if entry.Starred {
@@ -218,7 +215,7 @@ func answerCallback(bot *tgbotapi.BotAPI, queryID string, reply string) {
 	)
 }
 
-func updateKeyboard(bot *tgbotapi.BotAPI, chatID int64, rss *client.Client, messageID int, entry int64) {
+func updateKeyboard(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client, messageID int, entry int64) {
 	// Get latest entry data
 	entryData, err := rss.Entry(entry)
 	if err != nil {
