@@ -38,5 +38,8 @@ RestrictRealtime=true
 # https://www.freedesktop.org/software/systemd/man/systemd.exec.html#PrivateTmp=
 PrivateTmp=true
 
+# Allow writing to DB path
+ReadWritePaths=/opt/miniflux-bot/data
+
 [Install]
 WantedBy=multi-user.target
