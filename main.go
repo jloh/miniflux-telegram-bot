@@ -103,6 +103,13 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client)
 	for update := range updates {
 		// Check whether we've got a Callback Query
 		if update.CallbackQuery != nil {
+
+			// Double check if the callback is from our expected chat
+			if update.CallbackQuery.From.ID != int(chatID) {
+				fmt.Printf("Callback from unexpected chat ID %v, ignoring\n", update.CallbackQuery.From.ID)
+				continue
+			}
+
 			var entryID int64
 			// Split our string
 			callback := strings.Split(update.CallbackQuery.Data, ":")
