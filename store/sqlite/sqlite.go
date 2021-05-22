@@ -19,7 +19,9 @@ type db struct {
 func New() store.Store {
 	dbDir := "data"
 	if _, err := os.Stat(dbDir); os.IsNotExist(err) {
-		os.Mkdir(dbDir, os.ModePerm)
+		if err := os.Mkdir(dbDir, os.ModePerm); err != nil {
+			log.Printf("Error creating dir: %v\n", err)
+		}
 	}
 	ctx, err := sql.Open("sqlite3", dbDir+"/store.db")
 	if err != nil {
