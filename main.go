@@ -9,6 +9,9 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/spf13/viper"
+	"go.jloh.dev/miniflux-telegram-bot/models"
+	"go.jloh.dev/miniflux-telegram-bot/store"
+	"go.jloh.dev/miniflux-telegram-bot/store/sqlite"
 	miniflux "miniflux.app/client"
 )
 
@@ -54,6 +57,9 @@ func main() {
 	// Set latest entry
 	latestEntryID := latestEntries.Entries[0].ID
 
+	// Get our DB going
+	store := sqlite.New()
+
 	// Initialise Telegram bot instance
 	bot, err := tgbotapi.NewBotAPI(viper.GetString("TELEGRAM_BOT_TOKEN"))
 	if err != nil {
@@ -62,6 +68,9 @@ func main() {
 
 	// Start listening for messages from Telegram
 	go listenForMessages(bot, chatID, rss)
+
+	// Cleanup messages
+	go cleanupMessages(bot, chatID, rss, store)
 
 	// Loop checking for new Miniflux entries
 	// TODO: If webhooks get added, change over to those
@@ -73,7 +82,7 @@ func main() {
 		} else {
 			if entries.Total != 0 {
 				for _, entry := range entries.Entries {
-					sendMsg(bot, chatID, entry, viper.GetBool("TELEGRAM_SILENT_NOTIFICATION"))
+					sendMsg(bot, chatID, entry, viper.GetBool("TELEGRAM_SILENT_NOTIFICATION"), store)
 					latestEntryID = entry.ID
 				}
 			}
@@ -144,12 +153,70 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client)
 	}
 }
 
-func sendMsg(bot *tgbotapi.BotAPI, chatID int64, entry *miniflux.Entry, silentMessage bool) {
+func cleanupMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client, store store.Store) {
+	for {
+		// Set current time so we know when messages are to old to remove
+		currentTime := time.Now()
+
+		// Get all our entries
+		entries, err := store.GetEntries()
+		if err != nil {
+			fmt.Printf("Error getting saved entries: %v\n", err)
+		}
+
+		for _, entry := range entries {
+			if currentTime.Sub(entry.SentTime).Hours() < 48 {
+				// We can edit the message!
+				minifluxEntry, err := rss.Entry(int64(entry.ID))
+				if err != nil {
+					fmt.Printf("Error getting Miniflux entry: %v\n", err)
+					continue
+				}
+				if (minifluxEntry.Status == "read") && (!minifluxEntry.Starred) {
+					// If we're read and haven't been starred, cleanup the message
+					bot.DeleteMessage(tgbotapi.NewDeleteMessage(chatID, entry.TelegramID))
+					fmt.Printf("Deleting message for read entry %v\n", entry.ID)
+					// Cleanup entry in DB
+					err = store.DeleteEntry(entry.ID)
+					if err != nil {
+						fmt.Printf("Error deleting entry: %v\n", err)
+					}
+				}
+			} else {
+				// Cleanup the DB entry since there is nothing we can do with it
+				if err := store.DeleteEntry(entry.ID); err != nil {
+					fmt.Printf("Error deleting entry: %v\n", err)
+				} else {
+					fmt.Printf("Cleaned up entry for %v as older than 48 hours\n", entry.ID)
+				}
+			}
+		}
+
+		// Sleep for 10 minutes until we check again
+		time.Sleep(time.Duration(10 * time.Minute))
+	}
+}
+
+func sendMsg(bot *tgbotapi.BotAPI, chatID int64, entry *miniflux.Entry, silentMessage bool, store store.Store) {
 	msg := tgbotapi.NewMessage(chatID, escapeText("ModeMarkdownV2", fmt.Sprintf("*%s*\n%s in %s\n%s", entry.Title, entry.Feed.Title, entry.Feed.Category.Title, entry.URL)))
 	msg.ReplyMarkup = generateKeyboard(entry)
 	msg.ParseMode = "MarkdownV2"
 	msg.DisableNotification = silentMessage
-	bot.Send(msg)
+	message, err := bot.Send(msg)
+	if err != nil {
+		fmt.Printf("Error sending message: %v\n", err)
+		return
+	}
+
+	// Save our message
+	var messageEntry models.Message
+	messageEntry.ID = int(entry.ID)
+	messageEntry.TelegramID = message.MessageID
+	messageEntry.SentTime = message.Time()
+	err = store.InsertEntry(messageEntry)
+	if err != nil {
+		fmt.Printf("Error storing message: %v\n", err)
+	}
 }
 
 func escapeText(parseMode string, text string) string {

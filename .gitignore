@@ -1,2 +1,5 @@
 # Built assets
 dist/
+
+# SQL DB
+data/
