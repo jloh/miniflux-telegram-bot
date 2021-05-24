@@ -67,7 +67,7 @@ func main() {
 	}
 
 	// Start listening for messages from Telegram
-	go listenForMessages(bot, chatID, rss)
+	go listenForMessages(bot, chatID, rss, store)
 
 	// Cleanup messages
 	go cleanupMessages(bot, chatID, rss, store)
@@ -91,7 +91,7 @@ func main() {
 	}
 }
 
-func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client) {
+func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client, store store.Store) {
 	poll := tgbotapi.NewUpdate(0)
 	poll.Timeout = viper.GetInt("TELEGRAM_POLL_TIMEOUT")
 
@@ -142,6 +142,7 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client)
 					answerCallback(bot, update.CallbackQuery.ID, "Error marking entry as read")
 				} else {
 					bot.DeleteMessage(tgbotapi.NewDeleteMessage(chatID, update.CallbackQuery.Message.MessageID))
+					store.DeleteEntry(int(entryID))
 					answerCallback(bot, update.CallbackQuery.ID, "Deleted message & marked as read")
 				}
 			case deleteMessage:
