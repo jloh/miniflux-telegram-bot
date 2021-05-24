@@ -105,9 +105,16 @@ func (d db) GetEntries() ([]models.Message, error) {
 	return results, nil
 }
 
-func (d db) DeleteEntry(id int) error {
+func (d db) DeleteEntryByID(id int) error {
 	_, err := d.ctx.Exec(`
 	DELETE from entries where id=?
+	`, id)
+	return err
+}
+
+func (d db) DeleteEntryByTelegramID(id int) error {
+	_, err := d.ctx.Exec(`
+	DELETE from entries where telegram_id=?
 	`, id)
 	return err
 }

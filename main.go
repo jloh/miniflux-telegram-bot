@@ -142,11 +142,12 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client,
 					answerCallback(bot, update.CallbackQuery.ID, "Error marking entry as read")
 				} else {
 					bot.DeleteMessage(tgbotapi.NewDeleteMessage(chatID, update.CallbackQuery.Message.MessageID))
-					store.DeleteEntry(int(entryID))
+					store.DeleteEntryByID(int(entryID))
 					answerCallback(bot, update.CallbackQuery.ID, "Deleted message & marked as read")
 				}
 			case deleteMessage:
 				bot.DeleteMessage(tgbotapi.NewDeleteMessage(chatID, update.CallbackQuery.Message.MessageID))
+				store.DeleteEntryByTelegramID(update.CallbackQuery.Message.MessageID)
 				answerCallback(bot, update.CallbackQuery.ID, "Deleted message")
 			case star:
 				if err := rss.ToggleBookmark(entryID); err != nil {
@@ -185,14 +186,14 @@ func cleanupMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client, s
 					bot.DeleteMessage(tgbotapi.NewDeleteMessage(chatID, entry.TelegramID))
 					fmt.Printf("Deleting message for read entry %v\n", entry.ID)
 					// Cleanup entry in DB
-					err = store.DeleteEntry(entry.ID)
+					err = store.DeleteEntryByID(entry.ID)
 					if err != nil {
 						fmt.Printf("Error deleting entry: %v\n", err)
 					}
 				}
 			} else {
 				// Cleanup the DB entry since there is nothing we can do with it
-				if err := store.DeleteEntry(entry.ID); err != nil {
+				if err := store.DeleteEntryByID(entry.ID); err != nil {
 					fmt.Printf("Error deleting entry: %v\n", err)
 				} else {
 					fmt.Printf("Cleaned up entry for %v as older than 48 hours\n", entry.ID)
