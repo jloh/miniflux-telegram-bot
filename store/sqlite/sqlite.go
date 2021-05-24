@@ -43,14 +43,14 @@ func New() store.Store {
 
 func (d db) GetEntry(id int) (models.Message, error) {
 	var msg models.Message
-	stmt, err := d.ctx.Prepare("SELECT telegram_id, sent_time FROM entries where id=?")
+	stmt, err := d.ctx.Prepare("SELECT id, telegram_id, sent_time FROM entries where id=?")
 	if err != nil {
 		return msg, err
 	}
 	defer stmt.Close()
 
 	var sent_time string
-	err = stmt.QueryRow(id).Scan(&msg.TelegramID, &sent_time)
+	err = stmt.QueryRow(id).Scan(&msg.ID, &msg.TelegramID, &sent_time)
 	if err != nil {
 		return msg, err
 	}
