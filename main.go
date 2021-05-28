@@ -181,8 +181,8 @@ func cleanupMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client, s
 					fmt.Printf("Error getting Miniflux entry: %v\n", err)
 					continue
 				}
-				if (minifluxEntry.Status == "read") && (!minifluxEntry.Starred) {
-					// If we're read and haven't been starred, cleanup the message
+				if minifluxEntry.Status == "read" {
+					// If we're read cleanup the message
 					bot.DeleteMessage(tgbotapi.NewDeleteMessage(chatID, entry.TelegramID))
 					fmt.Printf("Deleting message for read entry %v\n", entry.ID)
 					// Cleanup entry in DB
