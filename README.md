@@ -1,6 +1,6 @@
 # Miniflux Telegram Bot
 
-**name here** is a Telegram Bot that sends you new Miniflux entries via Telegram.
+A Telegram Bot that sends you new Miniflux entries with inline actions to manage your feed.
 
 ![](.github/miniflux_bot.png)
 
@@ -22,4 +22,9 @@
 | `TELEGRAM_BOT_TOKEN` (Required) | `nil`                         | Bot token to use with the Telegram API  |
 | `TELEGRAM_CHAT_ID` (Required)   | `0`                           | The Chat ID the bot should send messages to (You can find your Chat ID by talking to [IDBot](https://telegram.me/storebot?start=myidbot)) |
 | `TELEGRAM_POLL_TIMEOUT`         | `120`                         | How many seconds to wait for a notification from Telegram before establishing a new connection|
+| `TELEGRAM_SECRET` (Required)    | `nil`                         | A secret string used to protect callback queries |
 | `TELEGRAM_SILENT_NOTIFICATION`  | `true`                        | Determines whether notifications are delivered [silently](https://telegram.org/blog/channels-2-0#silent-messages) or not |
+
+## License
+
+Code released under the [MIT license](LICENSE).
