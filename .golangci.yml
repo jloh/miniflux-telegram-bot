@@ -1,0 +1,13 @@
+run:
+  skip-dirs:
+    - uniuri
+
+linters:
+  disable:
+    - errcheck
+  enable:
+    - misspell
+
+linters-settings:
+  misspell:
+    locale: UK
