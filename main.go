@@ -207,7 +207,14 @@ func cleanupMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client, s
 }
 
 func sendMsg(bot *tgbotapi.BotAPI, chatID int64, entry *miniflux.Entry, silentMessage bool, store store.Store) {
-	msg := tgbotapi.NewMessage(chatID, escapeText("ModeMarkdownV2", fmt.Sprintf("*%s*\n%s in %s\n%s", entry.Title, entry.Feed.Title, entry.Feed.Category.Title, entry.URL)))
+	msg := tgbotapi.NewMessage(chatID,
+		fmt.Sprintf("*%s*\n%s in %s\n%s",
+			tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, entry.Title),
+			tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, entry.Feed.Title),
+			tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, entry.Feed.Category.Title),
+			tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, entry.URL),
+		),
+	)
 	msg.ReplyMarkup = generateKeyboard(entry)
 	msg.ParseMode = "MarkdownV2"
 	msg.DisableNotification = silentMessage
@@ -226,27 +233,6 @@ func sendMsg(bot *tgbotapi.BotAPI, chatID int64, entry *miniflux.Entry, silentMe
 	if err != nil {
 		fmt.Printf("Error storing message: %v\n", err)
 	}
-}
-
-func escapeText(parseMode string, text string) string {
-	var replacer *strings.Replacer
-
-	if parseMode == "ModeHTML" {
-		replacer = strings.NewReplacer("<", "&lt;", ">", "&gt;", "&", "&amp;")
-	} else if parseMode == "ModeMarkdown" {
-		replacer = strings.NewReplacer("_", "\\_", "*", "\\*", "`", "\\`", "[", "\\[")
-	} else if parseMode == "ModeMarkdownV2" {
-		replacer = strings.NewReplacer(
-			"_", "\\_", "[", "\\[", "]", "\\]", "(",
-			"\\(", ")", "\\)", "~", "\\~", "`", "\\`", ">", "\\>",
-			"#", "\\#", "+", "\\+", "-", "\\-", "=", "\\=", "|",
-			"\\|", "{", "\\{", "}", "\\}", ".", "\\.", "!", "\\!",
-		)
-	} else {
-		return ""
-	}
-
-	return replacer.Replace(text)
 }
 
 func generateKeyboard(entry *miniflux.Entry) tgbotapi.InlineKeyboardMarkup {
