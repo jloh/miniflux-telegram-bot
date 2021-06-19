@@ -161,7 +161,7 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.Telegram
 					answerCallback(bot, update.CallbackQuery.ID, "Error marking entry as read")
 				} else {
 					bot.DeleteMessage(tgbotapi.NewDeleteMessage(chatID, update.CallbackQuery.Message.MessageID))
-					store.DeleteEntryByID(int(entryID))
+					store.DeleteEntryByID(entryID)
 					answerCallback(bot, update.CallbackQuery.ID, "Deleted message & marked as read")
 				}
 			case deleteMessage:

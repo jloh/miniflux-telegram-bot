@@ -8,6 +8,6 @@ type Store interface {
 	GetEntries() ([]models.Message, error)   // Get all entries in DB
 	GetEntry(id int) (models.Message, error) // Get a single entry in the DB
 	InsertEntry(models.Message) error        // Insert a new entry into the DB
-	DeleteEntryByID(id int) error            // Delete a entry in the DB by Miniflux ID
+	DeleteEntryByID(id int64) error          // Delete a entry in the DB by Miniflux ID
 	DeleteEntryByTelegramID(id int) error    // Delete a entry in the DB by its Telegram ID
 }
