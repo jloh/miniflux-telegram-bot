@@ -27,7 +27,7 @@ const (
 
 var (
 	version = "unknown"
-	commit  = "unknown"
+	commit  = "00000000"
 	date    = "unknown"
 )
 
