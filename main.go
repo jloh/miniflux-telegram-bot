@@ -10,17 +10,19 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/spf13/viper"
 	"go.jloh.dev/miniflux-telegram-bot/models"
+	"go.jloh.dev/miniflux-telegram-bot/parse"
 	"go.jloh.dev/miniflux-telegram-bot/store"
 	"go.jloh.dev/miniflux-telegram-bot/store/sqlite"
+	"go.jloh.dev/miniflux-telegram-bot/types"
 	miniflux "miniflux.app/client"
 )
 
 const (
-	markRead      = "markRead"
-	markUnread    = "markUnread"
-	deleteAndMark = "deleteAndMark"
-	deleteMessage = "deleteMessage"
-	star          = "star"
+	markRead      string = "markRead"
+	markUnread    string = "markUnread"
+	deleteAndMark string = "deleteAndMark"
+	deleteMessage string = "deleteMessage"
+	star          string = "star"
 )
 
 var (
@@ -36,12 +38,20 @@ func main() {
 	viper.SetDefault("TELEGRAM_CHAT_ID", 0)
 	viper.SetDefault("TELEGRAM_POLL_TIMEOUT", 120)
 	viper.SetDefault("TELEGRAM_SILENT_NOTIFICATION", true)
+	viper.SetDefault("TELEGRAM_CLEANUP_MESSAGES", true)
+	viper.SetDefault("TELEGRAM_SECRET", "")
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// Set ChatID
 	chatID := viper.GetInt64("TELEGRAM_CHAT_ID")
 	if chatID == 0 {
 		log.Fatalln("TELEGRAM_CHAT_ID is not set")
+	}
+
+	// Check secret is set and valid
+	telegramSecret, err := parse.TelegramSecret(viper.GetString("TELEGRAM_SECRET"))
+	if err != nil {
+		log.Fatalf("TELEGRAM_SECRET setting is invalid, got: %v", viper.GetString("TELEGRAM_SECRET"))
 	}
 
 	// Setup RSS instance
@@ -68,10 +78,12 @@ func main() {
 	log.Printf("Starting Miniflux Bot %v built %v (Commit %s)", version, date, commit[:8])
 
 	// Start listening for messages from Telegram
-	go listenForMessages(bot, chatID, rss, store)
+	go listenForMessages(bot, chatID, telegramSecret, rss, store)
 
 	// Cleanup messages
-	go cleanupMessages(bot, chatID, rss, store)
+	if viper.GetBool("TELEGRAM_CLEANUP_MESSAGES") {
+		go cleanupMessages(bot, chatID, rss, store)
+	}
 
 	// Loop checking for new Miniflux entries
 	// TODO: If webhooks get added, change over to those
@@ -83,7 +95,7 @@ func main() {
 		} else {
 			if entries.Total != 0 {
 				for _, entry := range entries.Entries {
-					sendMsg(bot, chatID, entry, viper.GetBool("TELEGRAM_SILENT_NOTIFICATION"), store)
+					sendMsg(bot, chatID, telegramSecret, entry, viper.GetBool("TELEGRAM_SILENT_NOTIFICATION"), store)
 					latestEntryID = entry.ID
 				}
 			}
@@ -92,7 +104,7 @@ func main() {
 	}
 }
 
-func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client, store store.Store) {
+func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, rss *miniflux.Client, store store.Store) {
 	poll := tgbotapi.NewUpdate(0)
 	poll.Timeout = viper.GetInt("TELEGRAM_POLL_TIMEOUT")
 
@@ -115,28 +127,34 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client,
 			// Split our string
 			callback := strings.Split(update.CallbackQuery.Data, ":")
 
+			// Check our secret
+			if callback[0] != string(secret) {
+				fmt.Println("Callback contained invalid secret, ignoring")
+				continue
+			}
+
 			// If we've got an entry, try and get it
-			if len(callback) == 2 {
-				entryID, err = strconv.ParseInt(callback[1], 10, 64)
+			if len(callback) == 3 {
+				entryID, err = strconv.ParseInt(callback[2], 10, 64)
 				if err != nil {
-					fmt.Printf("Err: %v", err)
+					fmt.Printf("Failed parsing entry ID: %v", err)
 				}
 			}
 
-			switch callback[0] {
+			switch callback[1] {
 			case markRead:
 				if err := rss.UpdateEntries([]int64{entryID}, "read"); err != nil {
 					answerCallback(bot, update.CallbackQuery.ID, "Error marking entry as read")
 				} else {
 					go answerCallback(bot, update.CallbackQuery.ID, "Marked entry as read")
-					go updateKeyboard(bot, chatID, rss, update.CallbackQuery.Message.MessageID, entryID)
+					go updateKeyboard(bot, chatID, secret, rss, update.CallbackQuery.Message.MessageID, entryID)
 				}
 			case markUnread:
 				if err := rss.UpdateEntries([]int64{entryID}, "unread"); err != nil {
 					answerCallback(bot, update.CallbackQuery.ID, "Error marking entry as unread")
 				} else {
 					go answerCallback(bot, update.CallbackQuery.ID, "Marked entry as unread")
-					go updateKeyboard(bot, chatID, rss, update.CallbackQuery.Message.MessageID, entryID)
+					go updateKeyboard(bot, chatID, secret, rss, update.CallbackQuery.Message.MessageID, entryID)
 				}
 			case deleteAndMark:
 				if err := rss.UpdateEntries([]int64{entryID}, "read"); err != nil {
@@ -156,7 +174,7 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client,
 					fmt.Printf("Erorr talking to Miniflux: %v\n", err)
 				} else {
 					go answerCallback(bot, update.CallbackQuery.ID, "Updated entry")
-					go updateKeyboard(bot, chatID, rss, update.CallbackQuery.Message.MessageID, entryID)
+					go updateKeyboard(bot, chatID, secret, rss, update.CallbackQuery.Message.MessageID, entryID)
 				}
 			}
 		}
@@ -182,10 +200,13 @@ func cleanupMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client, s
 					fmt.Printf("Error getting Miniflux entry: %v\n", err)
 					continue
 				}
-				if minifluxEntry.Status == "read" {
-					// If we're read cleanup the message
-					bot.DeleteMessage(tgbotapi.NewDeleteMessage(chatID, entry.TelegramID))
+				// If we're read and were updated > 2 hours ago, cleanup the message
+				if (minifluxEntry.Status == "read") && (currentTime.Sub(minifluxEntry.ChangedAt).Hours() > 2) {
+					_, err := bot.DeleteMessage(tgbotapi.NewDeleteMessage(chatID, entry.TelegramID))
 					fmt.Printf("Deleting message for read entry %v\n", entry.ID)
+					if err != nil {
+						fmt.Printf("Error deleting message in Telegram: %v\n", err)
+					}
 					// Cleanup entry in DB
 					err = store.DeleteEntryByID(entry.ID)
 					if err != nil {
@@ -207,7 +228,7 @@ func cleanupMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client, s
 	}
 }
 
-func sendMsg(bot *tgbotapi.BotAPI, chatID int64, entry *miniflux.Entry, silentMessage bool, store store.Store) {
+func sendMsg(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, entry *miniflux.Entry, silentMessage bool, store store.Store) {
 	msg := tgbotapi.NewMessage(chatID,
 		fmt.Sprintf("*%s*\n%s in %s\n%s",
 			tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, entry.Title),
@@ -216,7 +237,7 @@ func sendMsg(bot *tgbotapi.BotAPI, chatID int64, entry *miniflux.Entry, silentMe
 			tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, entry.URL),
 		),
 	)
-	msg.ReplyMarkup = generateKeyboard(entry)
+	msg.ReplyMarkup = generateKeyboard(entry, secret)
 	msg.ParseMode = "MarkdownV2"
 	msg.DisableNotification = silentMessage
 	message, err := bot.Send(msg)
@@ -236,7 +257,7 @@ func sendMsg(bot *tgbotapi.BotAPI, chatID int64, entry *miniflux.Entry, silentMe
 	}
 }
 
-func generateKeyboard(entry *miniflux.Entry) tgbotapi.InlineKeyboardMarkup {
+func generateKeyboard(entry *miniflux.Entry, secret types.TelegramSecret) tgbotapi.InlineKeyboardMarkup {
 	buttons := make(map[string]string)
 
 	if entry.Starred {
@@ -244,17 +265,17 @@ func generateKeyboard(entry *miniflux.Entry) tgbotapi.InlineKeyboardMarkup {
 	} else {
 		buttons["star"] = "Star"
 	}
-	buttons["star_data"] = fmt.Sprintf("%v:%v", star, entry.ID)
+	buttons["star_data"] = fmt.Sprintf("%s:%v:%v", secret, star, entry.ID)
 
 	if entry.Status == "unread" {
 		buttons["unread"] = "Mark as read"
-		buttons["unread_data"] = fmt.Sprintf("%v:%v", markRead, entry.ID)
+		buttons["unread_data"] = fmt.Sprintf("%s:%v:%v", secret, markRead, entry.ID)
 	} else {
 		buttons["unread"] = "Mark as unread"
-		buttons["unread_data"] = fmt.Sprintf("%v:%v", markUnread, entry.ID)
+		buttons["unread_data"] = fmt.Sprintf("%s:%v:%v", secret, markUnread, entry.ID)
 	}
 
-	buttons["deleteAndMark"] = fmt.Sprintf("%v:%v", deleteAndMark, entry.ID)
+	buttons["deleteAndMark"] = fmt.Sprintf("%s:%v:%v", secret, deleteAndMark, entry.ID)
 
 	markup := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
@@ -278,7 +299,7 @@ func answerCallback(bot *tgbotapi.BotAPI, queryID string, reply string) {
 	)
 }
 
-func updateKeyboard(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client, messageID int, entry int64) {
+func updateKeyboard(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, rss *miniflux.Client, messageID int, entry int64) {
 	// Get latest entry data
 	entryData, err := rss.Entry(entry)
 	if err != nil {
@@ -289,7 +310,7 @@ func updateKeyboard(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client, me
 	msg := tgbotapi.NewEditMessageReplyMarkup(
 		chatID,
 		messageID,
-		generateKeyboard(entryData),
+		generateKeyboard(entryData, secret),
 	)
 	bot.Send(msg)
 }
