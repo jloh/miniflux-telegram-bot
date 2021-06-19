@@ -105,7 +105,7 @@ func (d db) GetEntries() ([]models.Message, error) {
 	return results, nil
 }
 
-func (d db) DeleteEntryByID(id int) error {
+func (d db) DeleteEntryByID(id int64) error {
 	_, err := d.ctx.Exec(`
 	DELETE from entries where id=?
 	`, id)

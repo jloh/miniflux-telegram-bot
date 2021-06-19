@@ -161,7 +161,7 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.Telegram
 					answerCallback(bot, update.CallbackQuery.ID, "Error marking entry as read")
 				} else {
 					bot.DeleteMessage(tgbotapi.NewDeleteMessage(chatID, update.CallbackQuery.Message.MessageID))
-					store.DeleteEntryByID(int(entryID))
+					store.DeleteEntryByID(entryID)
 					answerCallback(bot, update.CallbackQuery.ID, "Deleted message & marked as read")
 				}
 			case deleteMessage:
@@ -248,7 +248,7 @@ func sendMsg(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, en
 
 	// Save our message
 	var messageEntry models.Message
-	messageEntry.ID = int(entry.ID)
+	messageEntry.ID = entry.ID
 	messageEntry.TelegramID = message.MessageID
 	messageEntry.SentTime = message.Time()
 	err = store.InsertEntry(messageEntry)
