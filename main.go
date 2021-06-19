@@ -248,7 +248,7 @@ func sendMsg(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, en
 
 	// Save our message
 	var messageEntry models.Message
-	messageEntry.ID = int(entry.ID)
+	messageEntry.ID = entry.ID
 	messageEntry.TelegramID = message.MessageID
 	messageEntry.SentTime = message.Time()
 	err = store.InsertEntry(messageEntry)
