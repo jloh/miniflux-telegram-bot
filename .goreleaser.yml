@@ -12,6 +12,7 @@ builds:
       - CXX=/usr/local/opt/musl-cross/bin/x86_64-linux-musl-g++
     ldflags:
       - "-linkmode external -extldflags -static"
+      - "-X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}"
     goos:
       - linux
     goarch:

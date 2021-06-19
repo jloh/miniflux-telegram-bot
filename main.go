@@ -24,10 +24,9 @@ const (
 )
 
 var (
-	version = "dev"
-	commit  = "none"
+	version = "unknown"
+	commit  = "unknown"
 	date    = "unknown"
-	builtBy = "unknown"
 )
 
 func main() {
@@ -65,6 +64,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error initialising Telegram: %v", err)
 	}
+
+	log.Printf("Starting Miniflux Bot %v built %v (Commit %s)", version, date, commit[:8])
 
 	// Start listening for messages from Telegram
 	go listenForMessages(bot, chatID, rss, store)
