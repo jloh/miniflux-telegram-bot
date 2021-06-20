@@ -212,8 +212,10 @@ func updateMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSec
 					if err != nil {
 						fmt.Printf("Error deleting entry: %v\n", err)
 					}
-				} else if minifluxEntry.ChangedAt.After(entry.UpdatedTime) {
+				} else if minifluxEntry.ChangedAt.Truncate(time.Second).After(entry.UpdatedTime) {
 					// If entry has been updated in Miniflux (marked as read, starred etc) update Telegram keyboard
+					// Note: We're required to truncate Miniflux's time since it stores it down to the millisecond which the bot doesn't
+					// Without truncating it its always seen as "after" so we constantly update
 					log.Printf("Updating keyboard for entry %v\n", entry.ID)
 					updateKeyboard(bot, chatID, secret, rss, entry.TelegramID, entry.ID)
 					err := store.UpdateEntryTime(entry.ID, minifluxEntry.ChangedAt)
