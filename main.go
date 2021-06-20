@@ -148,6 +148,7 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.Telegram
 				} else {
 					go answerCallback(bot, update.CallbackQuery.ID, "Marked entry as read")
 					go updateKeyboard(bot, chatID, secret, rss, update.CallbackQuery.Message.MessageID, entryID)
+					go store.UpdateEntryTime(entryID, time.Now())
 				}
 			case markUnread:
 				if err := rss.UpdateEntries([]int64{entryID}, "unread"); err != nil {
@@ -155,6 +156,7 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.Telegram
 				} else {
 					go answerCallback(bot, update.CallbackQuery.ID, "Marked entry as unread")
 					go updateKeyboard(bot, chatID, secret, rss, update.CallbackQuery.Message.MessageID, entryID)
+					go store.UpdateEntryTime(entryID, time.Now())
 				}
 			case deleteAndMark:
 				if err := rss.UpdateEntries([]int64{entryID}, "read"); err != nil {
@@ -175,6 +177,7 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.Telegram
 				} else {
 					go answerCallback(bot, update.CallbackQuery.ID, "Updated entry")
 					go updateKeyboard(bot, chatID, secret, rss, update.CallbackQuery.Message.MessageID, entryID)
+					go store.UpdateEntryTime(entryID, time.Now())
 				}
 			}
 		}
