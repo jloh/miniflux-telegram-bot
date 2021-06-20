@@ -80,9 +80,9 @@ func main() {
 	// Start listening for messages from Telegram
 	go listenForMessages(bot, chatID, telegramSecret, rss, store)
 
-	// Cleanup messages
+	// Cleanup & update messages
 	if viper.GetBool("TELEGRAM_CLEANUP_MESSAGES") {
-		go cleanupMessages(bot, chatID, rss, store)
+		go updateMessages(bot, chatID, telegramSecret, rss, store)
 	}
 
 	// Loop checking for new Miniflux entries
@@ -181,7 +181,7 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.Telegram
 	}
 }
 
-func cleanupMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client, store store.Store) {
+func updateMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, rss *miniflux.Client, store store.Store) {
 	for {
 		// Set current time so we know when messages are to old to remove
 		currentTime := time.Now()
@@ -195,7 +195,7 @@ func cleanupMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client, s
 		for _, entry := range entries {
 			if currentTime.Sub(entry.SentTime).Hours() < 48 {
 				// We can edit the message!
-				minifluxEntry, err := rss.Entry(int64(entry.ID))
+				minifluxEntry, err := rss.Entry(entry.ID)
 				if err != nil {
 					fmt.Printf("Error getting Miniflux entry: %v\n", err)
 					continue
@@ -211,6 +211,14 @@ func cleanupMessages(bot *tgbotapi.BotAPI, chatID int64, rss *miniflux.Client, s
 					err = store.DeleteEntryByID(entry.ID)
 					if err != nil {
 						fmt.Printf("Error deleting entry: %v\n", err)
+					}
+				} else if minifluxEntry.ChangedAt.After(entry.UpdatedTime) {
+					// If entry has been updated in Miniflux (marked as read, starred etc) update Telegram keyboard
+					log.Printf("Updating keyboard for entry %v\n", entry.ID)
+					updateKeyboard(bot, chatID, secret, rss, entry.TelegramID, entry.ID)
+					err := store.UpdateEntryTime(entry.ID, minifluxEntry.ChangedAt)
+					if err != nil {
+						log.Printf("Failed updating entry in storage: %v\n", err)
 					}
 				}
 			} else {

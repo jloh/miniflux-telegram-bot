@@ -31,7 +31,8 @@ func New() store.Store {
 	CREATE TABLE IF NOT EXISTS entries (
 		id INTEGER PRIMARY KEY,
 		telegram_id INTEGER,
-		sent_time TEXT
+		sent_time TEXT,
+		updated TEXT
 	)`)
 	if err != nil {
 		log.Fatalln(err)
@@ -43,19 +44,24 @@ func New() store.Store {
 
 func (d db) GetEntry(id int) (models.Message, error) {
 	var msg models.Message
-	stmt, err := d.ctx.Prepare("SELECT id, telegram_id, sent_time FROM entries where id=?")
+	stmt, err := d.ctx.Prepare("SELECT id, telegram_id, sent_time, updated FROM entries where id=?")
 	if err != nil {
 		return msg, err
 	}
 	defer stmt.Close()
 
-	var sent_time string
-	err = stmt.QueryRow(id).Scan(&msg.ID, &msg.TelegramID, &sent_time)
+	var sent_time, updated_time string
+	err = stmt.QueryRow(id).Scan(&msg.ID, &msg.TelegramID, &sent_time, &updated_time)
 	if err != nil {
 		return msg, err
 	}
 
 	msg.SentTime, err = time.Parse(time.RFC3339, sent_time)
+	if err != nil {
+		return msg, err
+	}
+
+	msg.UpdatedTime, err = time.Parse(time.RFC3339, updated_time)
 	if err != nil {
 		return msg, err
 	}
@@ -68,15 +74,32 @@ func (d db) InsertEntry(msg models.Message) error {
 	INSERT INTO entries(
 		id,
 		telegram_id,
-		sent_time
+		sent_time,
+		updated
 	)
-	VALUES(?,?,?)`, msg.ID, msg.TelegramID, msg.SentTime.Format(time.RFC3339))
+	VALUES(?,?,?,?)`, msg.ID, msg.TelegramID, msg.SentTime.Format(time.RFC3339), msg.UpdatedTime.Format(time.RFC3339))
 	return err
+}
+
+func (d db) UpdateEntryTime(id int64, updated time.Time) error {
+	stmt, err := d.ctx.Prepare("UPDATE entries set updated=? where id=?")
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(updated.Format(time.RFC3339), id)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (d db) GetEntries() ([]models.Message, error) {
 	results := make([]models.Message, 0)
-	stmt, err := d.ctx.Prepare("SELECT id, telegram_id, sent_time FROM entries")
+	stmt, err := d.ctx.Prepare("SELECT id, telegram_id, sent_time, updated FROM entries")
 	if err != nil {
 		return nil, err
 	}
@@ -90,12 +113,16 @@ func (d db) GetEntries() ([]models.Message, error) {
 
 	for res.Next() {
 		var msg models.Message
-		var sent_time string
-		if err := res.Scan(&msg.ID, &msg.TelegramID, &sent_time); err != nil {
+		var sent_time, updated_time string
+		if err := res.Scan(&msg.ID, &msg.TelegramID, &sent_time, &updated_time); err != nil {
 			continue
 		}
 		// Parse sent_time
 		msg.SentTime, err = time.Parse(time.RFC3339, sent_time)
+		if err != nil {
+			continue
+		}
+		msg.UpdatedTime, err = time.Parse(time.RFC3339, updated_time)
 		if err != nil {
 			continue
 		}
