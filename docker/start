@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+
+# If Litestream is enabled, run the bot through that
+# otherwise start bot directly
+
+# Exit build script on first failure.
+set -e
+
+# Exit on unset variable.
+set -u
+
+# If we have a Litestream configuration file, assume we're running that
+if [[ -f /etc/litestream.yml ]] | [[ -f /etc/litestream.yaml ]]; then
+	export readonly DB_PATH="/app/data/store.db"
+	# Restore database
+	litestream restore -if-replica-exists -v "${DB_PATH}"
+
+	# Start litestream which will start our Bot for us
+	exec litestream replicate \
+		-exec "/app/miniflux_bot"
+else
+	# Just start the app
+	eval /app/miniflux_bot
+fi

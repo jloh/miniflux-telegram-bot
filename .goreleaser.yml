@@ -21,6 +21,8 @@ builds:
     id: darwin
     env:
       - CGO_ENABLED=1
+    ldflags:
+      - "-X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}"
     goos:
       - darwin
     goarch:
@@ -38,3 +40,35 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
+
+dockers:
+  # You can have multiple Docker images.
+  -
+    # GOOS of the built binaries/packages that should be used.
+    goos: linux
+
+    # GOARCH of the built binaries/packages that should be used.
+    goarch: amd64
+
+    # Templates of the Docker image names.
+    image_templates:
+    - "jloh/miniflux-telegram-bot:latest"
+    - "jloh/miniflux-telegram-bot:{{ .Tag }}"
+    - "jloh/miniflux-telegram-bot:v{{ .Major }}"
+    # - "gcr.io/myuser/myimage:latest"
+
+    skip_push: true
+
+    # Path to the Dockerfile (from the project root).
+    dockerfile: docker/Dockerfile
+
+    # Template of the docker build flags.
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+
+    extra_files:
+    - docker/start
