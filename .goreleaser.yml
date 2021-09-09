@@ -5,28 +5,16 @@ signs:
   - artifacts: checksum
 builds:
   - binary: miniflux_bot
-    id: linux_x86
     env:
-      - CGO_ENABLED=1
-      - CC=/usr/local/opt/musl-cross/bin/x86_64-linux-musl-gcc
-      - CXX=/usr/local/opt/musl-cross/bin/x86_64-linux-musl-g++
+      - CGO_ENABLED=0
     ldflags:
-      - "-linkmode external -extldflags -static"
       - "-X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}"
     goos:
       - linux
-    goarch:
-      - amd64
-  - binary: miniflux_bot
-    id: darwin
-    env:
-      - CGO_ENABLED=1
-    ldflags:
-      - "-X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}"
-    goos:
       - darwin
     goarch:
       - amd64
+      - arm64
 
 checksum:
   name_template: 'checksums.txt'
@@ -56,8 +44,6 @@ dockers:
     - "jloh/miniflux-telegram-bot:{{ .Tag }}"
     - "jloh/miniflux-telegram-bot:v{{ .Major }}"
     # - "gcr.io/myuser/myimage:latest"
-
-    skip_push: true
 
     # Path to the Dockerfile (from the project root).
     dockerfile: docker/Dockerfile
