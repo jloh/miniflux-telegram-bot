@@ -244,10 +244,10 @@ func updateMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSec
 func sendMsg(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, entry *miniflux.Entry, silentMessage bool, store store.Store) {
 	msg := tgbotapi.NewMessage(chatID,
 		fmt.Sprintf("*%s*\n%s in %s\n%s",
-			tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, entry.Title),
-			tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, entry.Feed.Title),
-			tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, entry.Feed.Category.Title),
-			tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, entry.URL),
+			escapeText("ModeMarkdownV2", entry.Title),
+			escapeText("ModeMarkdownV2", entry.Feed.Title),
+			escapeText("ModeMarkdownV2", entry.Feed.Category.Title),
+			escapeText("ModeMarkdownV2", entry.URL),
 		),
 	)
 	msg.ReplyMarkup = generateKeyboard(entry, secret)
@@ -326,4 +326,32 @@ func updateKeyboard(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSec
 		generateKeyboard(entryData, secret),
 	)
 	bot.Send(msg)
+}
+
+// EscapeText takes an input text and escape Telegram markup symbols.
+// In this way we can send a text without being afraid of having to escape the characters manually.
+// Note that you don't have to include the formatting style in the input text, or it will be escaped too.
+// If there is an error, an empty string will be returned.
+//
+// parseMode is the text formatting mode (ModeMarkdown, ModeMarkdownV2 or ModeHTML)
+// text is the input string that will be escaped
+func escapeText(parseMode string, text string) string {
+	var replacer *strings.Replacer
+
+	if parseMode == "ModeHTML" {
+		replacer = strings.NewReplacer("<", "&lt;", ">", "&gt;", "&", "&amp;")
+	} else if parseMode == "ModeMarkdown" {
+		replacer = strings.NewReplacer("_", "\\_", "*", "\\*", "`", "\\`", "[", "\\[")
+	} else if parseMode == "ModeMarkdownV2" {
+		replacer = strings.NewReplacer(
+			"_", "\\_", "*", "\\*", "[", "\\[", "]", "\\]", "(",
+			"\\(", ")", "\\)", "~", "\\~", "`", "\\`", ">", "\\>",
+			"#", "\\#", "+", "\\+", "-", "\\-", "=", "\\=", "|",
+			"\\|", "{", "\\{", "}", "\\}", ".", "\\.", "!", "\\!",
+		)
+	} else {
+		return ""
+	}
+
+	return replacer.Replace(text)
 }

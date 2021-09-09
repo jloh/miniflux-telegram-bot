@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 
 	"go.jloh.dev/miniflux-telegram-bot/models"
 	"go.jloh.dev/miniflux-telegram-bot/store"
@@ -23,7 +23,7 @@ func New() store.Store {
 			log.Printf("Error creating dir: %v\n", err)
 		}
 	}
-	ctx, err := sql.Open("sqlite3", dbDir+"/store.db")
+	ctx, err := sql.Open("sqlite", dbDir+"/store.db")
 	if err != nil {
 		log.Fatalln(err)
 	}
