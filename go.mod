@@ -8,7 +8,7 @@ require (
 	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac // indirect
 	golang.org/x/text v0.3.7 // indirect
 	miniflux.app v0.0.0-20210908035354-27d170cbecf6
-	modernc.org/sqlite v1.13.3
+	modernc.org/sqlite v1.14.1
 )
 
 require (
@@ -33,9 +33,9 @@ require (
 	gopkg.in/ini.v1 v1.63.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	lukechampine.com/uint128 v1.1.1 // indirect
-	modernc.org/cc/v3 v3.35.15 // indirect
-	modernc.org/ccgo/v3 v3.12.39 // indirect
-	modernc.org/libc v1.11.40 // indirect
+	modernc.org/cc/v3 v3.35.17 // indirect
+	modernc.org/ccgo/v3 v3.12.65 // indirect
+	modernc.org/libc v1.11.71 // indirect
 	modernc.org/mathutil v1.4.1 // indirect
 	modernc.org/memory v1.0.5 // indirect
 	modernc.org/opt v0.1.1 // indirect
