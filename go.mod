@@ -4,8 +4,8 @@ go 1.17
 
 require (
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
-	github.com/spf13/viper v1.10.0
-	golang.org/x/sys v0.0.0-20211205182925-97ca703d548d // indirect
+	github.com/spf13/viper v1.10.1
+	golang.org/x/sys v0.0.0-20211210111614-af8b64212486 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	miniflux.app v0.0.0-20210908035354-27d170cbecf6
 	modernc.org/sqlite v1.14.2
