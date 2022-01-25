@@ -2,15 +2,19 @@ package sqlite
 
 import (
 	"database/sql"
+	"embed"
 	"log"
 	"os"
 	"time"
 
 	_ "modernc.org/sqlite"
 
+	"github.com/pressly/goose/v3"
 	"go.jloh.dev/miniflux-telegram-bot/models"
 	"go.jloh.dev/miniflux-telegram-bot/store"
 )
+
+var EmbedMigrations embed.FS
 
 type db struct {
 	ctx *sql.DB
@@ -27,15 +31,14 @@ func New() store.Store {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	_, err = ctx.Exec(`
-	CREATE TABLE IF NOT EXISTS entries (
-		id INTEGER PRIMARY KEY,
-		telegram_id INTEGER,
-		sent_time TEXT,
-		updated TEXT
-	)`)
-	if err != nil {
-		log.Fatalln(err)
+	// Run migrations
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		log.Fatalf("[store] Failed setting Goose to sqlite: %v\n", err)
+	}
+	goose.SetBaseFS(EmbedMigrations)
+
+	if err := goose.Up(ctx, "migrations"); err != nil {
+		log.Fatalf("[store] Failed migrating DB: %v\n", err)
 	}
 	return &db{
 		ctx: ctx,

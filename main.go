@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"log"
 	"strconv"
@@ -31,6 +32,9 @@ var (
 	date    = "unknown"
 )
 
+//go:embed migrations/*.sql
+var embedMigrations embed.FS
+
 func main() {
 	// Get config
 	viper.SetDefault("MINIFLUX_URL", "https://reader.miniflux.app")
@@ -41,6 +45,9 @@ func main() {
 	viper.SetDefault("TELEGRAM_CLEANUP_MESSAGES", true)
 	viper.SetDefault("TELEGRAM_SECRET", "")
 	viper.AutomaticEnv() // read in environment variables that match
+
+	// Pass migrations to storage
+	sqlite.EmbedMigrations = embedMigrations
 
 	// Set ChatID
 	chatID := viper.GetInt64("TELEGRAM_CHAT_ID")

@@ -3,3 +3,6 @@ dist/
 
 # SQL DB
 data/
+
+# Keep SQL files from migration folder
+!migrations/*.sql
