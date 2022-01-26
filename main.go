@@ -271,6 +271,7 @@ func sendMsg(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, en
 	messageEntry.ID = entry.ID
 	messageEntry.TelegramID = message.MessageID
 	messageEntry.SentTime = message.Time()
+	messageEntry.UpdatedTime = entry.ChangedAt
 	err = store.InsertEntry(messageEntry)
 	if err != nil {
 		fmt.Printf("Error storing message: %v\n", err)
