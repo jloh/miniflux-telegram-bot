@@ -12,8 +12,19 @@ set -u
 # If we have a Litestream configuration file, assume we're running that
 if [[ -f /etc/litestream.yml ]] || [[ -f /etc/litestream.yaml ]]; then
 	export readonly DB_PATH="/app/data/store.db"
-	# Restore database
-	litestream restore -if-replica-exists -v "${DB_PATH}"
+	export readonly FRESH_DB="${FRESH_DB:=false}"
+
+	# Check whether the DB file already exists
+	# If it does and we're set to clean it up, remove it
+	if [[ -f "${DB_PATH}" ]] && [[ $FRESH_DB == "true" ]]; then
+		# Remove existing DB
+		rm "${$DB_PATH}"
+	fi
+
+	# Restore database if we don't have an existing one
+	if [[ ! -f "${DB_PATH}" ]]; then
+		litestream restore -if-replica-exists -v "${DB_PATH}"
+	fi
 
 	# Start litestream which will start our Bot for us
 	exec litestream replicate \
