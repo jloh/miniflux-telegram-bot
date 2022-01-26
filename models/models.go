@@ -10,4 +10,5 @@ type Message struct {
 	TelegramID  int       // The message ID from Telegram
 	SentTime    time.Time // The time the message was sent
 	UpdatedTime time.Time // The time the message was last updated
+	DeleteRead  bool      // Delete when the entry has been read for X time
 }

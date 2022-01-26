@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"log"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -102,7 +103,7 @@ func main() {
 		} else {
 			if entries.Total != 0 {
 				for _, entry := range entries.Entries {
-					sendMsg(bot, chatID, telegramSecret, entry, viper.GetBool("TELEGRAM_SILENT_NOTIFICATION"), store)
+					sendMsg(bot, chatID, telegramSecret, entry, viper.GetBool("TELEGRAM_SILENT_NOTIFICATION"), true, store)
 					latestEntryID = entry.ID
 				}
 			}
@@ -121,6 +122,22 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.Telegram
 	}
 
 	for update := range updates {
+		// Check whether we're a command
+		if update.Message != nil && update.Message.IsCommand() {
+			switch update.Message.Command() {
+			case "randomunread":
+				unreadEntries, err := rss.Entries(&miniflux.Filter{Status: miniflux.EntryStatusUnread})
+				if err != nil {
+					fmt.Printf("Err getting unread entries: %v", err)
+				}
+
+				// Seed rand function
+				rand.Seed(time.Now().Unix())
+
+				// Select a random entry from the list
+				sendMsg(bot, chatID, secret, unreadEntries.Entries[rand.Intn(len(unreadEntries.Entries))], false, false, store)
+			}
+		}
 		// Check whether we've got a Callback Query
 		if update.CallbackQuery != nil {
 
@@ -204,14 +221,16 @@ func updateMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSec
 
 		for _, entry := range entries {
 			if currentTime.Sub(entry.SentTime).Hours() < 48 {
+
 				// We can edit the message!
 				minifluxEntry, err := rss.Entry(entry.ID)
 				if err != nil {
 					fmt.Printf("Error getting Miniflux entry: %v\n", err)
 					continue
 				}
-				// If we're read and were updated > 2 hours ago, cleanup the message
-				if (minifluxEntry.Status == "read") && (currentTime.Sub(minifluxEntry.ChangedAt).Hours() > 2) {
+
+				// If we're read, were updated > 2 hours ago and set to delete it, cleanup the message
+				if (minifluxEntry.Status == "read") && (currentTime.Sub(minifluxEntry.ChangedAt).Hours() > 2) && entry.DeleteRead {
 					_, err := bot.DeleteMessage(tgbotapi.NewDeleteMessage(chatID, entry.TelegramID))
 					fmt.Printf("Deleting message for read entry %v\n", entry.ID)
 					if err != nil {
@@ -248,7 +267,7 @@ func updateMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSec
 	}
 }
 
-func sendMsg(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, entry *miniflux.Entry, silentMessage bool, store store.Store) {
+func sendMsg(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, entry *miniflux.Entry, silentMessage bool, deleteRead bool, store store.Store) {
 	msg := tgbotapi.NewMessage(chatID,
 		fmt.Sprintf("*%s*\n%s in %s\n%s",
 			escapeText("ModeMarkdownV2", entry.Title),
@@ -272,6 +291,7 @@ func sendMsg(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, en
 	messageEntry.TelegramID = message.MessageID
 	messageEntry.SentTime = message.Time()
 	messageEntry.UpdatedTime = entry.ChangedAt
+	messageEntry.DeleteRead = deleteRead
 	err = store.InsertEntry(messageEntry)
 	if err != nil {
 		fmt.Printf("Error storing message: %v\n", err)

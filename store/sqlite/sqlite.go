@@ -47,14 +47,14 @@ func New() store.Store {
 
 func (d db) GetEntry(id int) (models.Message, error) {
 	var msg models.Message
-	stmt, err := d.ctx.Prepare("SELECT id, telegram_id, sent_time, updated FROM entries where id=?")
+	stmt, err := d.ctx.Prepare("SELECT id, telegram_id, sent_time, updated, delete_read FROM entries where id=?")
 	if err != nil {
 		return msg, err
 	}
 	defer stmt.Close()
 
 	var sent_time, updated_time string
-	err = stmt.QueryRow(id).Scan(&msg.ID, &msg.TelegramID, &sent_time, &updated_time)
+	err = stmt.QueryRow(id).Scan(&msg.ID, &msg.TelegramID, &sent_time, &updated_time, msg.DeleteRead)
 	if err != nil {
 		return msg, err
 	}
@@ -78,9 +78,10 @@ func (d db) InsertEntry(msg models.Message) error {
 		id,
 		telegram_id,
 		sent_time,
-		updated
+		updated,
+		delete_read
 	)
-	VALUES(?,?,?,?)`, msg.ID, msg.TelegramID, msg.SentTime.Format(time.RFC3339), msg.UpdatedTime.Format(time.RFC3339))
+	VALUES(?,?,?,?,?)`, msg.ID, msg.TelegramID, msg.SentTime.Format(time.RFC3339), msg.UpdatedTime.Format(time.RFC3339), msg.DeleteRead)
 	return err
 }
 
@@ -102,7 +103,7 @@ func (d db) UpdateEntryTime(id int64, updated time.Time) error {
 
 func (d db) GetEntries() ([]models.Message, error) {
 	results := make([]models.Message, 0)
-	stmt, err := d.ctx.Prepare("SELECT id, telegram_id, sent_time, updated FROM entries")
+	stmt, err := d.ctx.Prepare("SELECT id, telegram_id, sent_time, updated, delete_read FROM entries")
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +118,7 @@ func (d db) GetEntries() ([]models.Message, error) {
 	for res.Next() {
 		var msg models.Message
 		var sent_time, updated_time string
-		if err := res.Scan(&msg.ID, &msg.TelegramID, &sent_time, &updated_time); err != nil {
+		if err := res.Scan(&msg.ID, &msg.TelegramID, &sent_time, &updated_time, &msg.DeleteRead); err != nil {
 			continue
 		}
 		// Parse sent_time
