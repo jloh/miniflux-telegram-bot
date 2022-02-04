@@ -5,13 +5,13 @@ go 1.17
 require (
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
 	github.com/spf13/viper v1.10.1
-	golang.org/x/sys v0.0.0-20211210111614-af8b64212486 // indirect
+	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 	golang.org/x/text v0.3.7 // indirect
 	miniflux.app v0.0.0-20210908035354-27d170cbecf6
 	modernc.org/sqlite v1.14.5
 )
 
-require github.com/pressly/goose/v3 v3.5.1
+require github.com/pressly/goose/v3 v3.5.2
 
 require (
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
