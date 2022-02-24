@@ -8,7 +8,7 @@ require (
 	golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	miniflux.app v0.0.0-20210908035354-27d170cbecf6
-	modernc.org/sqlite v1.14.6
+	modernc.org/sqlite v1.14.7
 )
 
 require github.com/pressly/goose/v3 v3.5.3
