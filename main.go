@@ -46,6 +46,7 @@ func main() {
 	viper.SetDefault("TELEGRAM_SILENT_NOTIFICATION", true)
 	viper.SetDefault("TELEGRAM_CLEANUP_MESSAGES", true)
 	viper.SetDefault("TELEGRAM_SECRET", "")
+	viper.SetDefault("TELEGRAM_ALLOWED_USERNAME", "")
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("/etc/miniflux_bot/")
@@ -136,9 +137,15 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.Telegram
 		fmt.Printf("Err: %v", err)
 	}
 
+	allowed_username := viper.GetString("TELEGRAM_ALLOWED_USERNAME")
+
 	for update := range updates {
 		// Check whether we're a command
 		if update.Message != nil && update.Message.IsCommand() {
+			if allowed_username != "" && update.Message.From.UserName != allowed_username {
+				fmt.Printf("Error: Received command from %v, ignoring\n", update.Message.From.UserName)
+				continue
+			}
 			switch update.Message.Command() {
 			case "randomunread":
 				unreadEntries, err := rss.Entries(&miniflux.Filter{Status: miniflux.EntryStatusUnread})
@@ -148,6 +155,11 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.Telegram
 
 				// Select a random entry from the list
 				sendMsg(bot, chatID, secret, unreadEntries.Entries[rand.Intn(len(unreadEntries.Entries))], false, false, store)
+			case "start":
+				startMessage := fmt.Sprintf("Your Miniflux Bot is online! Running %v built %v (Commit %s)", version, date, commit[:8])
+				if err = sendText(bot, chatID, startMessage, false); err != nil {
+					fmt.Printf("Error: Failed sending message for start command: %v", err)
+				}
 			}
 		}
 		// Check whether we've got a Callback Query
@@ -277,6 +289,13 @@ func updateMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSec
 		// Sleep for 10 minutes until we check again
 		time.Sleep(time.Duration(10 * time.Minute))
 	}
+}
+
+func sendText(bot *tgbotapi.BotAPI, chatID int64, msgStr string, silentMessage bool) error {
+	msg := tgbotapi.NewMessage(chatID, msgStr)
+	msg.DisableNotification = silentMessage
+	_, err := bot.Send(msg)
+	return err
 }
 
 func sendMsg(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, entry *miniflux.Entry, silentMessage bool, deleteRead bool, store store.Store) {
