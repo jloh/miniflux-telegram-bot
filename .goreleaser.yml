@@ -1,8 +1,8 @@
 before:
   hooks:
     - go mod download
-signs:
-  - artifacts: checksum
+# signs:
+#   - artifacts: checksum
 builds:
   - binary: miniflux_bot
     env:
