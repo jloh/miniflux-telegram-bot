@@ -131,9 +131,6 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.Telegram
 					fmt.Printf("Err getting unread entries: %v", err)
 				}
 
-				// Seed rand function
-				rand.Seed(time.Now().Unix())
-
 				// Select a random entry from the list
 				sendMsg(bot, chatID, secret, unreadEntries.Entries[rand.Intn(len(unreadEntries.Entries))], false, false, store)
 			}
@@ -324,7 +321,7 @@ func generateKeyboard(entry *miniflux.Entry, secret types.TelegramSecret) tgbota
 			tgbotapi.NewInlineKeyboardButtonData(buttons["star"], buttons["star_data"]),
 		),
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Delete message", deleteMessage),
+			tgbotapi.NewInlineKeyboardButtonData("Delete message", fmt.Sprintf("%s:%v", secret, deleteMessage)),
 			tgbotapi.NewInlineKeyboardButtonData("Delete & mark as read", buttons["deleteAndMark"]),
 		),
 	)
