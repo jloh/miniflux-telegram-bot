@@ -1,5 +1,5 @@
 # Use the Go image to build our application.
-FROM golang:1.16 as builder
+FROM golang:1.21 as builder
 
 ARG litestream_version="0.3.5"
 ARG litestream_deb_filename="litestream-v${litestream_version}-linux-amd64.deb"
@@ -9,7 +9,7 @@ ARG litestream_deb_filename="litestream-v${litestream_version}-linux-amd64.deb"
 ADD https://github.com/benbjohnson/litestream/releases/download/v0.3.5/litestream-v0.3.5-linux-amd64-static.tar.gz /tmp/litestream.tar.gz
 RUN tar -C /usr/local/bin -xzf /tmp/litestream.tar.gz
 
-FROM golang:1.17.0-alpine
+FROM golang:1.21.0-alpine
 
 # Add in Litestream
 COPY --from=builder /usr/local/bin/litestream /usr/local/bin/litestream

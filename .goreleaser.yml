@@ -32,6 +32,7 @@ changelog:
 dockers:
   # You can have multiple Docker images.
   -
+    use: buildx
     # GOOS of the built binaries/packages that should be used.
     goos: linux
 
@@ -40,9 +41,9 @@ dockers:
 
     # Templates of the Docker image names.
     image_templates:
-    - "jloh/miniflux-telegram-bot:latest"
-    - "jloh/miniflux-telegram-bot:{{ .Tag }}"
-    - "jloh/miniflux-telegram-bot:v{{ .Major }}"
+    - "jloh/miniflux-telegram-bot:latest-amd64"
+    - "jloh/miniflux-telegram-bot:{{ .Tag }}-amd64"
+    - "jloh/miniflux-telegram-bot:v{{ .Major }}-amd64"
     # - "gcr.io/myuser/myimage:latest"
 
     # Path to the Dockerfile (from the project root).
@@ -51,6 +52,7 @@ dockers:
     # Template of the docker build flags.
     build_flag_templates:
     - "--pull"
+    - "--platform=linux/amd64"
     - "--label=org.opencontainers.image.created={{.Date}}"
     - "--label=org.opencontainers.image.title={{.ProjectName}}"
     - "--label=org.opencontainers.image.revision={{.FullCommit}}"
@@ -58,3 +60,47 @@ dockers:
 
     extra_files:
     - docker/start
+  -
+    use: buildx
+    # GOOS of the built binaries/packages that should be used.
+    goos: linux
+
+    # GOARCH of the built binaries/packages that should be used.
+    goarch: arm64
+
+    # Templates of the Docker image names.
+    image_templates:
+    - "jloh/miniflux-telegram-bot:latest-arm64"
+    - "jloh/miniflux-telegram-bot:{{ .Tag }}-arm64"
+    - "jloh/miniflux-telegram-bot:v{{ .Major }}-arm64"
+    # - "gcr.io/myuser/myimage:latest"
+
+    # Path to the Dockerfile (from the project root).
+    dockerfile: docker/Dockerfile
+
+    # Template of the docker build flags.
+    build_flag_templates:
+    - "--pull"
+    - "--platform=linux/arm64"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+
+    extra_files:
+    - docker/start
+
+docker_manifests:
+  # https://goreleaser.com/customization/docker_manifest/
+  - name_template: jloh/miniflux-telegram-bot:{{ .Tag }}
+    image_templates:
+      - jloh/miniflux-telegram-bot:{{ .Tag }}-amd64
+      - jloh/miniflux-telegram-bot:{{ .Tag }}-arm64
+  - name_template: jloh/miniflux-telegram-bot:{{ .Major }}
+    image_templates:
+      - jloh/miniflux-telegram-bot:{{ .Major }}-amd64
+      - jloh/miniflux-telegram-bot:{{ .Major }}-arm64
+  - name_template: jloh/miniflux-telegram-bot:latest
+    image_templates:
+      - jloh/miniflux-telegram-bot:latest-amd64
+      - jloh/miniflux-telegram-bot:latest-arm64
