@@ -96,7 +96,7 @@ docker_manifests:
     image_templates:
       - jloh/miniflux-telegram-bot:{{ .Tag }}-amd64
       - jloh/miniflux-telegram-bot:{{ .Tag }}-arm64
-  - name_template: jloh/miniflux-telegram-bot:{{ .Major }}
+  - name_template: jloh/miniflux-telegram-bot:v{{ .Major }}
     image_templates:
       - jloh/miniflux-telegram-bot:v{{ .Major }}-amd64
       - jloh/miniflux-telegram-bot:v{{ .Major }}-arm64
