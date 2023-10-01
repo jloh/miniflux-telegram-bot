@@ -6,3 +6,6 @@ data/
 
 # Keep SQL files from migration folder
 !migrations/*.sql
+
+# Config files
+config.yaml

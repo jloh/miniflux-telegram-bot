@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -45,7 +46,16 @@ func main() {
 	viper.SetDefault("TELEGRAM_SILENT_NOTIFICATION", true)
 	viper.SetDefault("TELEGRAM_CLEANUP_MESSAGES", true)
 	viper.SetDefault("TELEGRAM_SECRET", "")
-	viper.AutomaticEnv() // read in environment variables that match
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("/etc/miniflux_bot/")
+	viper.AddConfigPath(".")
+	viper.AutomaticEnv()
+
+	// If a config file is found, read it in.
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Fprintf(os.Stdout, "Error reading in config file: %v\n", err)
+	}
 
 	// Pass migrations to storage
 	sqlite.EmbedMigrations = embedMigrations
@@ -103,8 +113,13 @@ func main() {
 		} else {
 			if entries.Total != 0 {
 				for _, entry := range entries.Entries {
-					sendMsg(bot, chatID, telegramSecret, entry, viper.GetBool("TELEGRAM_SILENT_NOTIFICATION"), true, store)
-					latestEntryID = entry.ID
+					if ignoredCategoryID(entry.Feed.Category.ID) {
+						log.Printf("Skipping entry %v as it's in an ignored category", entry.ID)
+						continue
+					} else {
+						sendMsg(bot, chatID, telegramSecret, entry, viper.GetBool("TELEGRAM_SILENT_NOTIFICATION"), true, store)
+						latestEntryID = entry.ID
+					}
 				}
 			}
 		}
@@ -379,4 +394,15 @@ func escapeText(parseMode string, text string) string {
 	}
 
 	return replacer.Replace(text)
+}
+
+// Check whether the CategoryID is in our ignored list
+func ignoredCategoryID(categoryID int64) bool {
+	ignoredCategories := viper.GetStringSlice("MINIFLUX_IGNORED_CATEGORIES")
+	for _, ignoredCategory := range ignoredCategories {
+		if strconv.FormatInt(categoryID, 10) == ignoredCategory {
+			return true
+		}
+	}
+	return false
 }
