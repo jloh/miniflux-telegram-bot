@@ -1,15 +1,17 @@
 # Use the Go image to build our application.
-FROM golang:1.21 as builder
+FROM golang:1.21-alpine as builder
 
-ARG litestream_version="0.3.5"
-ARG litestream_deb_filename="litestream-v${litestream_version}-linux-amd64.deb"
+ARG litestream_version="0.3.11"
+# This arg comes from the buildx environment and changes
+# depending on what arch is being built
+ARG TARGETARCH
 
 # Download the static build of Litestream directly into the path & make it executable.
 # This is done in the builder and copied as the chmod doubles the size.
-ADD https://github.com/benbjohnson/litestream/releases/download/v0.3.5/litestream-v0.3.5-linux-amd64-static.tar.gz /tmp/litestream.tar.gz
+ADD https://github.com/benbjohnson/litestream/releases/download/v${litestream_version}/litestream-v${litestream_version}-linux-${TARGETARCH}.tar.gz /tmp/litestream.tar.gz
 RUN tar -C /usr/local/bin -xzf /tmp/litestream.tar.gz
 
-FROM golang:1.21.0-alpine
+FROM golang:1.21-alpine
 
 # Add in Litestream
 COPY --from=builder /usr/local/bin/litestream /usr/local/bin/litestream
