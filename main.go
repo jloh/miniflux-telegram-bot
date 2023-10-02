@@ -114,12 +114,12 @@ func main() {
 		} else {
 			if entries.Total != 0 {
 				for _, entry := range entries.Entries {
+					latestEntryID = entry.ID
 					if ignoredCategoryID(entry.Feed.Category.ID) {
 						log.Printf("Skipping entry %v as it's in an ignored category", entry.ID)
 						continue
 					} else {
 						sendMsg(bot, chatID, telegramSecret, entry, viper.GetBool("TELEGRAM_SILENT_NOTIFICATION"), true, store)
-						latestEntryID = entry.ID
 					}
 				}
 			}
