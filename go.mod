@@ -4,9 +4,9 @@ go 1.21
 
 require (
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
-	github.com/pressly/goose/v3 v3.15.0
+	github.com/pressly/goose/v3 v3.15.1
 	github.com/spf13/viper v1.16.0
-	golang.org/x/sys v0.12.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	miniflux.app v1.0.46
 	modernc.org/sqlite v1.26.0
