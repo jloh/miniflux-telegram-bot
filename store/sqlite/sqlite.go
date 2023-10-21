@@ -3,7 +3,7 @@ package sqlite
 import (
 	"database/sql"
 	"embed"
-	"log"
+	"log/slog"
 	"os"
 	"time"
 
@@ -24,21 +24,24 @@ func New() store.Store {
 	dbDir := "data"
 	if _, err := os.Stat(dbDir); os.IsNotExist(err) {
 		if err := os.Mkdir(dbDir, os.ModePerm); err != nil {
-			log.Printf("Error creating dir: %v\n", err)
+			slog.Error("[store] failed creating storage directory", "error", err)
 		}
 	}
 	ctx, err := sql.Open("sqlite", dbDir+"/store.db")
 	if err != nil {
-		log.Fatalln(err)
+		slog.Error("[store] failed opening DB", "error", err)
+		os.Exit(1)
 	}
 	// Run migrations
 	if err := goose.SetDialect("sqlite3"); err != nil {
-		log.Fatalf("[store] Failed setting Goose to sqlite: %v\n", err)
+		slog.Error("[store] failed setting Goose to sqlite", "error", err)
+		os.Exit(1)
 	}
 	goose.SetBaseFS(EmbedMigrations)
 
 	if err := goose.Up(ctx, "migrations"); err != nil {
-		log.Fatalf("[store] Failed migrating DB: %v\n", err)
+		slog.Error("[store] failed running migrations", "error", err)
+		os.Exit(1)
 	}
 	return &db{
 		ctx: ctx,

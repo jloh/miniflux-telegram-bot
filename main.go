@@ -3,7 +3,7 @@ package main
 import (
 	"embed"
 	"fmt"
-	"log"
+	"log/slog"
 	"math/rand"
 	"os"
 	"strconv"
@@ -55,7 +55,7 @@ func main() {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err != nil {
-		fmt.Fprintf(os.Stdout, "Error reading in config file: %v\n", err)
+		slog.Warn("Error reading in config file", "error", err)
 	}
 
 	// Pass migrations to storage
@@ -64,13 +64,15 @@ func main() {
 	// Set ChatID
 	chatID := viper.GetInt64("TELEGRAM_CHAT_ID")
 	if chatID == 0 {
-		log.Fatalln("TELEGRAM_CHAT_ID is not set")
+		slog.Error("TELEGRAM_CHAT_ID is not set")
+		os.Exit(1)
 	}
 
 	// Check secret is set and valid
 	telegramSecret, err := parse.TelegramSecret(viper.GetString("TELEGRAM_SECRET"))
 	if err != nil {
-		log.Fatalf("TELEGRAM_SECRET setting is invalid, got: %v", viper.GetString("TELEGRAM_SECRET"))
+		slog.Error("TELEGRAM_SECRET setting is invalid", "error", err)
+		os.Exit(1)
 	}
 
 	// Setup RSS instance
@@ -79,7 +81,8 @@ func main() {
 	// Get latest entry
 	latestEntries, err := rss.Entries(&miniflux.Filter{Status: miniflux.EntryStatusUnread, Limit: 1, Direction: "desc", Order: "id"})
 	if err != nil {
-		log.Fatalf("Cannot find latest entry: %v", err)
+		slog.Error("Cannot find latest entry", "error", err)
+		os.Exit(1)
 	}
 
 	// Set latest entry
@@ -91,10 +94,11 @@ func main() {
 	// Initialise Telegram bot instance
 	bot, err := tgbotapi.NewBotAPI(viper.GetString("TELEGRAM_BOT_TOKEN"))
 	if err != nil {
-		log.Fatalf("Error initialising Telegram: %v", err)
+		slog.Error("Failed initialising Telegram", "error", err)
+		os.Exit(1)
 	}
 
-	log.Printf("Starting Miniflux Bot %v built %v (Commit %s)", version, date, commit[:8])
+	slog.Info("Starting Miniflux Bot", "version", version, "built", date, "commit", commit[:8])
 
 	// Start listening for messages from Telegram
 	go listenForMessages(bot, chatID, telegramSecret, rss, store)
@@ -110,16 +114,20 @@ func main() {
 		entries, err := rss.Entries(&miniflux.Filter{Status: miniflux.EntryStatusUnread, Order: "id", AfterEntryID: latestEntryID})
 
 		if err != nil {
-			fmt.Printf("Error getting entries: %v", err)
+			slog.Error("Failed getting entries", "error", err)
 		} else {
 			if entries.Total != 0 {
 				for _, entry := range entries.Entries {
 					latestEntryID = entry.ID
 					if ignoredCategoryID(entry.Feed.Category.ID) {
-						log.Printf("Skipping entry %v as it's in an ignored category", entry.ID)
+						slog.Info("Skipping entry as it's in an ignored category", "entry", entry.ID)
 						continue
 					} else {
-						sendMsg(bot, chatID, telegramSecret, entry, viper.GetBool("TELEGRAM_SILENT_NOTIFICATION"), true, store)
+						if err := sendMsg(bot, chatID, telegramSecret, entry, viper.GetBool("TELEGRAM_SILENT_NOTIFICATION"), true, store); err != nil {
+							slog.Error("Failed sending message", "error", err, "entry", entry.ID)
+						} else {
+							slog.Info("Message sent for entry", "entry", entry.ID)
+						}
 					}
 				}
 			}
@@ -134,7 +142,7 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.Telegram
 
 	updates, err := bot.GetUpdatesChan(poll)
 	if err != nil {
-		fmt.Printf("Err: %v", err)
+		slog.Error("Failed getting Telegram updates", "error", err)
 	}
 
 	allowed_username := viper.GetString("TELEGRAM_ALLOWED_USERNAME")
@@ -143,22 +151,25 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.Telegram
 		// Check whether we're a command
 		if update.Message != nil && update.Message.IsCommand() {
 			if allowed_username != "" && update.Message.From.UserName != allowed_username {
-				fmt.Printf("Error: Received command from %v, ignoring\n", update.Message.From.UserName)
+				slog.Error("Received command from invalid user", slog.String("user", update.Message.From.UserName))
 				continue
 			}
 			switch update.Message.Command() {
 			case "randomunread":
 				unreadEntries, err := rss.Entries(&miniflux.Filter{Status: miniflux.EntryStatusUnread})
 				if err != nil {
-					fmt.Printf("Err getting unread entries: %v", err)
+					slog.Error("Failed getting unread entries from Miniflux", "error", err)
 				}
 
 				// Select a random entry from the list
-				sendMsg(bot, chatID, secret, unreadEntries.Entries[rand.Intn(len(unreadEntries.Entries))], false, false, store)
+
+				if err := sendMsg(bot, chatID, secret, unreadEntries.Entries[rand.Intn(len(unreadEntries.Entries))], false, false, store); err != nil {
+					slog.Error("Failed sending message for random entry", "error", err)
+				}
 			case "start":
 				startMessage := fmt.Sprintf("Your Miniflux Bot is online! Running %v built %v (Commit %s)", version, date, commit[:8])
 				if err = sendText(bot, chatID, startMessage, false); err != nil {
-					fmt.Printf("Error: Failed sending message for start command: %v", err)
+					slog.Error("Failed sending message for start command", "error", err)
 				}
 			}
 		}
@@ -167,7 +178,7 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.Telegram
 
 			// Double check if the callback is from our expected chat
 			if update.CallbackQuery.From.ID != int(chatID) {
-				fmt.Printf("Callback from unexpected chat ID %v, ignoring\n", update.CallbackQuery.From.ID)
+				slog.Warn("Callback from unexpected chat ID, ignoring", "chat_id", update.CallbackQuery.From.ID)
 				continue
 			}
 
@@ -177,7 +188,7 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.Telegram
 
 			// Check our secret
 			if callback[0] != string(secret) {
-				fmt.Println("Callback contained invalid secret, ignoring")
+				slog.Warn("Callback contained invalid secret, ignoring", "callback", callback)
 				continue
 			}
 
@@ -185,7 +196,7 @@ func listenForMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.Telegram
 			if len(callback) == 3 {
 				entryID, err = strconv.ParseInt(callback[2], 10, 64)
 				if err != nil {
-					fmt.Printf("Failed parsing entry ID: %v", err)
+					slog.Error("Failed parsing entry ID", "error", err)
 				}
 			}
 
@@ -240,7 +251,7 @@ func updateMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSec
 		// Get all our entries
 		entries, err := store.GetEntries()
 		if err != nil {
-			fmt.Printf("Error getting saved entries: %v\n", err)
+			slog.Error("Failed getting saved entries", "error", err)
 		}
 
 		for _, entry := range entries {
@@ -249,39 +260,39 @@ func updateMessages(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSec
 				// We can edit the message!
 				minifluxEntry, err := rss.Entry(entry.ID)
 				if err != nil {
-					fmt.Printf("Error getting Miniflux entry: %v\n", err)
+					slog.Error("Failed getting Miniflux entry", "error", err)
 					continue
 				}
 
 				// If we're read, were updated > 2 hours ago and set to delete it, cleanup the message
 				if (minifluxEntry.Status == "read") && (currentTime.Sub(minifluxEntry.ChangedAt).Hours() > 2) && entry.DeleteRead {
 					_, err := bot.DeleteMessage(tgbotapi.NewDeleteMessage(chatID, entry.TelegramID))
-					fmt.Printf("Deleting message for read entry %v\n", entry.ID)
+					slog.Info("Deleting message for read entry", "entry", entry.ID)
 					if err != nil {
-						fmt.Printf("Error deleting message in Telegram: %v\n", err)
+						slog.Error("Failed deleting message in Telegram", "error", err)
 					}
 					// Cleanup entry in DB
 					err = store.DeleteEntryByID(entry.ID)
 					if err != nil {
-						fmt.Printf("Error deleting entry: %v\n", err)
+						slog.Error("Error deleting entry in storage", "error", err)
 					}
 				} else if minifluxEntry.ChangedAt.Truncate(time.Second).After(entry.UpdatedTime) {
 					// If entry has been updated in Miniflux (marked as read, starred etc) update Telegram keyboard
 					// Note: We're required to truncate Miniflux's time since it stores it down to the millisecond which the bot doesn't
 					// Without truncating it its always seen as "after" so we constantly update
-					log.Printf("Updating keyboard for entry %v\n", entry.ID)
+					slog.Info("Updating keyboard for entry", "entry", entry.ID)
 					updateKeyboard(bot, chatID, secret, rss, entry.TelegramID, entry.ID)
 					err := store.UpdateEntryTime(entry.ID, minifluxEntry.ChangedAt)
 					if err != nil {
-						log.Printf("Failed updating entry in storage: %v\n", err)
+						slog.Error("Failed updating entry in storage", "error", err)
 					}
 				}
 			} else {
 				// Cleanup the DB entry since there is nothing we can do with it
 				if err := store.DeleteEntryByID(entry.ID); err != nil {
-					fmt.Printf("Error deleting entry: %v\n", err)
+					slog.Error("Error deleting entry in storage", "error", err)
 				} else {
-					fmt.Printf("Cleaned up entry for %v as older than 48 hours\n", entry.ID)
+					slog.Info("Cleaned up old entry in storage", "entry", entry.ID)
 				}
 			}
 		}
@@ -298,7 +309,7 @@ func sendText(bot *tgbotapi.BotAPI, chatID int64, msgStr string, silentMessage b
 	return err
 }
 
-func sendMsg(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, entry *miniflux.Entry, silentMessage bool, deleteRead bool, store store.Store) {
+func sendMsg(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, entry *miniflux.Entry, silentMessage bool, deleteRead bool, store store.Store) error {
 	msg := tgbotapi.NewMessage(chatID,
 		fmt.Sprintf("*%s*\n%s in %s\n%s",
 			escapeText("ModeMarkdownV2", entry.Title),
@@ -312,8 +323,7 @@ func sendMsg(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, en
 	msg.DisableNotification = silentMessage
 	message, err := bot.Send(msg)
 	if err != nil {
-		fmt.Printf("Error sending message: %v\n", err)
-		return
+		return err
 	}
 
 	// Save our message
@@ -323,10 +333,11 @@ func sendMsg(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, en
 	messageEntry.SentTime = message.Time()
 	messageEntry.UpdatedTime = entry.ChangedAt
 	messageEntry.DeleteRead = deleteRead
-	err = store.InsertEntry(messageEntry)
-	if err != nil {
-		fmt.Printf("Error storing message: %v\n", err)
+	if err := store.DeleteEntryByID(entry.ID); err != nil {
+		return err
 	}
+
+	return nil
 }
 
 func generateKeyboard(entry *miniflux.Entry, secret types.TelegramSecret) tgbotapi.InlineKeyboardMarkup {
@@ -375,7 +386,7 @@ func updateKeyboard(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSec
 	// Get latest entry data
 	entryData, err := rss.Entry(entry)
 	if err != nil {
-		fmt.Printf("Err: %v", err)
+		slog.Error("Error updating keyboard", "error", err)
 	}
 
 	// Generate new keyboard data
