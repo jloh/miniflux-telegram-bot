@@ -333,7 +333,7 @@ func sendMsg(bot *tgbotapi.BotAPI, chatID int64, secret types.TelegramSecret, en
 	messageEntry.SentTime = message.Time()
 	messageEntry.UpdatedTime = entry.ChangedAt
 	messageEntry.DeleteRead = deleteRead
-	if err := store.DeleteEntryByID(entry.ID); err != nil {
+	if err := store.InsertEntry(messageEntry); err != nil {
 		return err
 	}
 
