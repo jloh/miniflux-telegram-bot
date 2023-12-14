@@ -9,7 +9,7 @@ require (
 	golang.org/x/sys v0.14.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	miniflux.app v1.0.46
-	modernc.org/sqlite v1.27.0
+	modernc.org/sqlite v1.28.0
 )
 
 require (
